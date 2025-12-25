@@ -118,33 +118,11 @@ jobs:
           generate_token() {
             local app_id="$CHECK_APP_ID"
             local key_file="/tmp/key.pem"
-            echo "$BACKUP_PRIVATE_KEY" > "$key_file"
+            echo "$CHECK_PRIVATE_KEY" > "$key_file"
             chmod 600 "$key_file"
             
             # JWT生成（Pythonを使用）
-            local jwt=$(python3 << 'PYTHON_SCRIPT'
-import jwt
-import time
-from datetime import datetime, timedelta
-import sys
-
-try:
-    with open('/tmp/key.pem', 'rb') as f:
-        private_key = f.read()
-    
-    now = int(time.time())
-    payload = {
-        'iat': now - 60,
-        'exp': now + 600,
-        'iss': sys.argv[1]
-    }
-    
-    token = jwt.encode(payload, private_key, algorithm='RS256')
-    print(token)
-except:
-    pass
-PYTHON_SCRIPT
-            "$app_id" 2>/dev/null || echo "")
+            local jwt=$(python3 -c 'import jwt, time, sys; exec("try:\n    with open(\"/tmp/key.pem\", \"rb\") as f:\n        private_key = f.read()\n    now = int(time.time())\n    payload = {\"iat\": now - 60, \"exp\": now + 600, \"iss\": sys.argv[1]}\n    token = jwt.encode(payload, private_key, algorithm=\"RS256\")\n    print(token)\nexcept:\n    pass")' "$app_id" 2>/dev/null || echo "")
             
             if [ -z "$jwt" ]; then
               exit 0
