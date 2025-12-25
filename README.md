@@ -26,10 +26,14 @@
    - **Repository permissions**:
      - Contents: **Read and write**
      - Metadata: Read-only
-   - **Where can this GitHub App be installed?**: Only on this account
+   - **Where can this GitHub App be installed?**: Only select repositories
 3. **Generate private key** をクリックしてプライベートキーをダウンロード（後で使用します）
-4. **Install App** をクリックして、このリポジトリにインストール
-5. **App ID** と **Installation ID** をメモします:
+4. **Install App** をクリック
+5. **Only select repositories** を選択し、以下のリポジトリを選択:
+   - このリポジトリ（ソースリポジトリ）
+   - チェック先のリポジトリ（まだ作成していない場合は後で追加）
+6. **Install** をクリック
+7. **App ID** と **Installation ID** をメモします:
    - App ID: GitHub Appの設定ページから取得
    - Installation ID: インストールページのURLから取得（`/installations/{id}`）
 
@@ -37,7 +41,10 @@
 
 1. チェック先のリポジトリを作成（まだ作成していない場合）
    - 例: `your-username/your-repo-check`
-2. 同じGitHub Appをチェック先リポジトリにもインストール
+2. GitHub Appのインストール設定に戻り、チェック先リポジトリを追加:
+   - GitHub Appの設定 → Install App → Configure
+   - **Repository access** で **Only select repositories** を選択
+   - チェック先リポジトリを選択して保存
 
 ### 3. シークレットの設定
 
