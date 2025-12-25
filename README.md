@@ -30,7 +30,7 @@
 3. **Generate private key** をクリックしてプライベートキーをダウンロード（後で使用します）
 4. **Install App** をクリック
 5. **Only select repositories** を選択し、以下のリポジトリを選択:
-   - このリポジトリ（ソースリポジトリ）
+   - 整合性のベースとなるリポジトリ（確認元リポジトリ）
    - チェック先のリポジトリ（まだ作成していない場合は後で追加）
 6. **Install** をクリック
 7. **App ID** と **Installation ID** をメモします:
@@ -48,7 +48,7 @@
 
 ### 3. シークレットの設定
 
-このリポジトリの設定 → Secrets and variables → Actions → New repository secret で以下を設定します:
+整合性のベースとなるリポジトリ（確認元リポジトリ）の設定 → Secrets and variables → Actions → New repository secret で以下を設定します:
 
 #### 必須シークレット
 
@@ -61,7 +61,7 @@
   -----END RSA PRIVATE KEY-----
   ```
 - **`CHECK_TARGET_REPO`**: チェック先のリポジトリ（例: `your-username/your-repo-check`）
-- **`CHECK_INSTALLATION_ID`**: GitHub AppのインストールID（このリポジトリ用）
+- **`CHECK_INSTALLATION_ID`**: GitHub AppのインストールID（確認元リポジトリ用）
 
 #### オプションシークレット
 
@@ -71,7 +71,7 @@
 
 ### 4. 動作確認
 
-1. リポジトリに何か変更を加えてpush:
+1. 整合性のベースとなるリポジトリ（確認元リポジトリ）に何か変更を加えてpush:
    ```bash
    echo "# Test" > test.txt
    git add test.txt
@@ -79,7 +79,7 @@
    git push origin main
    ```
 
-2. GitHubリポジトリの **Actions** タブを開く
+2. 確認元リポジトリの **Actions** タブを開く
 3. ワークフロー `Repository Integrity Check` が実行されることを確認
 4. ワークフローが正常に完了することを確認
 
@@ -87,11 +87,11 @@
 
 ### 自動チェック
 
-デフォルトでは、リポジトリへのpushが検出されると自動的に整合性チェックが実行されます。
+デフォルトでは、確認元リポジトリへのpushが検出されると自動的に整合性チェックが実行されます。
 
 ### 手動チェック
 
-1. GitHubリポジトリの **Actions** タブを開く
+1. 確認元リポジトリの **Actions** タブを開く
 2. 左側のメニューから `Repository Integrity Check` を選択
 3. **Run workflow** をクリック
 4. **Force check execution** に `true` を入力
@@ -99,7 +99,7 @@
 
 ## ワークフローの動作
 
-1. **イベント検出**: リポジトリへのpushを検出
+1. **イベント検出**: 確認元リポジトリへのpushを検出
 2. **条件チェック**: チェックが有効かどうかを確認
 3. **遅延実行**: システム負荷を考慮して適切なタイミングで実行
 4. **認証**: GitHub Appトークンを動的に生成
@@ -113,7 +113,7 @@
 - シークレットが正しく設定されているか確認してください
 - GitHub Appが正しくインストールされているか確認してください
 - ワークフローの条件（`if` 条件）を確認してください
-- `CHECK_ENABLED` シークレットが `true` に設定されているか確認してください
+- `CHECK_ENABLED` シークレットが `true` に設定されているか確認してください（確認元リポジトリのシークレット設定を確認）
 
 ### GitHub Appトークンの生成に失敗する
 
